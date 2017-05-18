@@ -70,15 +70,26 @@ void TrackerManager::TrackAll(const size_t start_video_num, const int pause_val)
 
 TrackerVisualizer::TrackerVisualizer(const std::vector<Video>& videos,
                                      RegressorBase* regressor, Tracker* tracker) :
-  TrackerManager(videos, regressor, tracker)
+  TrackerManager(videos, regressor, tracker),
+  hrt_("Tracker"),
+  total_ms_(0),
+  num_frames_(0)
 {
 }
-
 
 void TrackerVisualizer::ProcessTrackOutput(
     const size_t frame_num, const cv::Mat& image_curr, const bool has_annotation,
     const BoundingBox& bbox_gt, const BoundingBox& bbox_estimate_uncentered,
     const int pause_val) {
+  // Stop the timer and print the time needed for tracking.
+  hrt_.stop();
+  const double ms = hrt_.getMilliseconds();
+
+  // Update the total time needed for tracking.  (Other time is used to save the tracking
+  // output to a video and to write tracking data to a file for evaluation purposes).
+  total_ms_ += ms;
+  num_frames_++;
+
   cv::Mat full_output;
   image_curr.copyTo(full_output);
 
@@ -100,6 +111,18 @@ void TrackerVisualizer::ProcessTrackOutput(
 
 void TrackerVisualizer::VideoInit(const Video& video, const size_t video_num) {
   printf("Video: %zu\n", video_num);
+}
+
+void TrackerVisualizer::SetupEstimate() {
+  // Record the time before starting to track.
+  hrt_.reset();
+  hrt_.start();
+}
+
+void TrackerVisualizer::PostProcessVideo() {
+  // Compute the mean tracking time per frame.
+  const double fps = (num_frames_ / total_ms_) * 1000;
+  printf("FPS: %lf frames / second\n", fps);
 }
 
 TrackerTesterAlov::TrackerTesterAlov(const std::vector<Video>& videos,

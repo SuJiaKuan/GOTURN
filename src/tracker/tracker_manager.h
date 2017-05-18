@@ -65,6 +65,23 @@ public:
       const size_t frame_num, const cv::Mat& image_curr, const bool has_annotation,
       const BoundingBox& bbox_gt, const BoundingBox& bbox_estimate,
       const int pause_val);
+
+  // Record the time before starting to track.
+  virtual void SetupEstimate();
+
+  // Close the file that saves the tracking data.
+  virtual void PostProcessVideo();
+
+private:
+  // Timer.
+  HighResTimer hrt_;
+
+  // Total time used for tracking (Other time is used to save the tracking
+  // output to a video and to write tracking data to a file for evaluation purposes).
+  double total_ms_;
+
+  // Number of frames tracked.
+  int num_frames_;
 };
 
 // Save tracking output and video; record timing.
