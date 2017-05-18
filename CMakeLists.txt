@@ -20,12 +20,12 @@ include_directories(${CUDA_INCLUDE_DIRS})
 # set(CUDA_INCLUDE_DIRS /path_to_cuda/include)
 
 find_package(Caffe REQUIRED)
+set(Caffe_DIR $ENV{HOME}/local/caffe)
+set(Caffe_INCLUDE_DIRS $ENV{HOME}/local/caffe/include)
+set(Caffe_LIBRARIES $ENV{HOME}/local/caffe/lib/libcaffe.so)
 include_directories(${Caffe_INCLUDE_DIRS})
 add_definitions(${Caffe_DEFINITIONS})    # ex. -DCPU_ONLY
 message("Caffe_DIR is ${Caffe_DIR}")	#specify Caffe_DIR in /cmake/Modules/FindCaffe.cmake
-# Note: If can't find Caffe, please uncomment the below line and set the path manually
-# set(Caffe_DIR /path_to_caffe/build/install)
-# set(Caffe_INCLUDE_DIRS /path_to_caffe/build/install/include)
 
 set(GLOG_LIB glog)
 
@@ -82,7 +82,7 @@ add_executable (test_tracker_vot src/test/test_tracker_vot.cpp)
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${Caffe_LIBRARIES} ${GLOG_LIB})
 target_link_libraries (test_tracker_vot ${PROJECT_NAME})
 # Note: If can't find trax, please download trax and build it, then uncomment the below line and set the path manually
-# target_link_libraries(${PROJECT_NAME} /path_to_trax/build/libtrax.so)
+target_link_libraries(${PROJECT_NAME} /usr/local/lib64/libtrax.so)
 
 add_executable (test_tracker_alov src/test/test_tracker_alov.cpp)
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${Caffe_LIBRARIES} ${GLOG_LIB})
