@@ -222,3 +222,55 @@ void TrackerTesterAlov::PostProcessAll() {
   const double mean_time_ms = total_ms_ / num_frames_;
   printf("Mean time: %lf ms\n", mean_time_ms);
 }
+
+TrackerStreamer::TrackerStreamer(RegressorBase* regressor, Tracker* tracker) :
+  regressor_(regressor),
+  tracker_(tracker)
+{
+}
+
+void TrackerStreamer::Track(
+    const double x1, const double y1,
+    const double x2, const double y2,
+    const int pause_val) {
+  // Capture stream from video device (e.g. webcam)
+  cv::VideoCapture cap(0);
+  if (!cap.isOpened()) {
+    // TODO: Error handling
+  }
+
+  // Create a window for display
+  cv::namedWindow("TrackerStreamer", cv::WINDOW_AUTOSIZE);
+
+  bool isFirstFrame = true;
+
+  // Loop to capture frames from stream and track objects
+  while (true) {
+    cv::Mat frame;
+    cap >> frame;
+
+    if (isFirstFrame) {
+      // Setup the first boudning box for initialization
+      BoundingBox bbox;
+      bbox.x1_ = x1;
+      bbox.y1_ = y1;
+      bbox.x2_ = x2;
+      bbox.y2_ = y2;
+      // Initialize the tracker.
+      tracker_->Init(frame, bbox, regressor_);
+      isFirstFrame = false;
+    } else {
+      // Track and estimate the target's bounding box location in the current image.
+      BoundingBox bbox_estimate_uncentered;
+      tracker_->Track(frame, regressor_, &bbox_estimate_uncentered);
+      // Draw estimated bounding box of the target location (red).
+      bbox_estimate_uncentered.Draw(255, 0, 0, &frame);
+    }
+
+    // Show the image with the estimated and ground-truth bounding boxes.
+    cv::imshow("TrackerStreamer", frame);
+
+    // Pause for pause_val milliseconds, or until user input (if pause_val == 0).
+    cv::waitKey(pause_val);
+  }
+}

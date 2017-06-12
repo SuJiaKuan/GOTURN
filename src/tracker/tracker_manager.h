@@ -134,5 +134,22 @@ private:
   bool save_videos_;
 };
 
+// Track the objects from a video stream
+class TrackerStreamer {
+public:
+  TrackerStreamer(RegressorBase* regressor, Tracker* tracker);
+
+  void Track(
+      const double x1, const double y1,
+      const double x2, const double y2,
+      const int pause_val);
+
+private:
+  // Neural network tracker.
+  RegressorBase* regressor_;
+
+  // Tracker.
+  Tracker* tracker_;
+};
 
 #endif // TRACKER_MANAGER_H
