@@ -140,6 +140,7 @@ public:
   TrackerStreamer(RegressorBase* regressor, Tracker* tracker);
 
   void Track(
+      const std::string stream_device,
       const double x1, const double y1,
       const double x2, const double y2,
       const int pause_val);

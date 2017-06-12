@@ -1,8 +1,5 @@
 // Visualize the tracker from video stream
 
-#include <iostream>
-#include <cstdlib>
-
 #include "network/regressor.h"
 #include "tracker/tracker.h"
 #include "tracker/tracker_manager.h"
@@ -12,9 +9,9 @@ using std::string;
 const bool show_intermediate_output = false;
 
 int main (int argc, char *argv[]) {
-  if (argc < 3) {
+  if (argc < 4) {
     std::cerr << "Usage: " << argv[0]
-              << " deploy.prototxt network.caffemodel"
+              << " deploy.prototxt network.caffemodel stream_device"
               << " [gpu_id] [pauseval]" << std::endl;
     return 1;
   }
@@ -23,27 +20,28 @@ int main (int argc, char *argv[]) {
 
   const string& model_file   = argv[1];
   const string& trained_file = argv[2];
+  const string& stream_device = argv[3];
 
   int gpu_id = 0;
-  if (argc >= 4) {
-    gpu_id = atoi(argv[3]);
+  if (argc >= 5) {
+    gpu_id = atoi(argv[4]);
   }
 
   int pause_val = 1;
-  if (argc >= 7) {
-    pause_val = atoi(argv[4]);
+  if (argc >= 6) {
+    pause_val = atoi(argv[5]);
   }
-
-  std::cout << model_file << " " << trained_file << " " << gpu_id << std::endl;
 
   // Set up the neural network.
   const bool do_train = false;
   Regressor regressor(model_file, trained_file, gpu_id, do_train);
 
+  // Set up the tracker
   Tracker tracker(show_intermediate_output);
 
+  // Start tracking
   TrackerStreamer tracker_streamer(&regressor, &tracker);
-  tracker_streamer.Track(0, 0, 100, 100, pause_val);
+  tracker_streamer.Track(stream_device, 0, 0, 100, 100, pause_val);
 
   return 0;
 }

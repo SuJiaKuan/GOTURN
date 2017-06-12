@@ -230,11 +230,12 @@ TrackerStreamer::TrackerStreamer(RegressorBase* regressor, Tracker* tracker) :
 }
 
 void TrackerStreamer::Track(
+    const string stream_device,
     const double x1, const double y1,
     const double x2, const double y2,
     const int pause_val) {
-  // Capture stream from video device (e.g. webcam)
-  cv::VideoCapture cap(0);
+  // Capture stream from a device (e.g. webcam, IP camera)
+  cv::VideoCapture cap(stream_device);
   if (!cap.isOpened()) {
     // TODO: Error handling
   }
