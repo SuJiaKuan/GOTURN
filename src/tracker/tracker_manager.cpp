@@ -225,15 +225,42 @@ void TrackerTesterAlov::PostProcessAll() {
 
 TrackerStreamer::TrackerStreamer(RegressorBase* regressor, Tracker* tracker) :
   regressor_(regressor),
-  tracker_(tracker)
+  tracker_(tracker),
+  first_bbox_(),
+  state_(STATE_BEFORE_SELECT)
 {
 }
 
-void TrackerStreamer::Track(
-    const string stream_device,
+void TrackerStreamer::onMouseEvent (int event, int x, int y, int flags, void* userData) {
+  if (userData != NULL) {
+    // Call the handler for mouse event: onMouseEvent(int, int, int).
+    TrackerStreamer* trackerStreamer = reinterpret_cast<TrackerStreamer*>(userData);
+    trackerStreamer->onMouseEvent(event, x, y);
+  }
+}
+
+void TrackerStreamer::onMouseEvent (int event, int x, int y) {
+  if (state_ == STATE_BEFORE_SELECT && event == cv::EVENT_LBUTTONDOWN) {
+    setFirstBoundingBox(x, y, x, y);
+    state_ = STATE_SELECTING;
+  } else if (state_ == STATE_SELECTING && event == cv::EVENT_MOUSEMOVE) {
+    setFirstBoundingBox(first_bbox_.x1_, first_bbox_.y1_, x, y);
+  } else if (state_ == STATE_SELECTING && event == cv::EVENT_LBUTTONUP) {
+    setFirstBoundingBox(first_bbox_.x1_, first_bbox_.y1_, x, y);
+    state_ = STATE_BEFORE_TRACK;
+  }
+}
+
+void TrackerStreamer::setFirstBoundingBox (
     const double x1, const double y1,
-    const double x2, const double y2,
-    const int pause_val) {
+    const double x2, const double y2) {
+  first_bbox_.x1_ = x1;
+  first_bbox_.y1_ = y1;
+  first_bbox_.x2_ = x2;
+  first_bbox_.y2_ = y2;
+}
+
+void TrackerStreamer::Track(const string stream_device, const int pause_val) {
   // Capture stream from a device (e.g. webcam, IP camera)
   cv::VideoCapture cap(stream_device);
   if (!cap.isOpened()) {
@@ -243,30 +270,34 @@ void TrackerStreamer::Track(
   // Create a window for display
   cv::namedWindow("TrackerStreamer", cv::WINDOW_AUTOSIZE);
 
-  bool isFirstFrame = true;
+  // Setup callback function for mouse event.
+  // The 3rd argument must be "this" due to trick of callback in class:
+  // https://stackoverflow.com/questions/25748404/how-to-use-cvsetmousecallback-in-class
+  cv::setMouseCallback("TrackerStreamer", onMouseEvent, this);
 
   // Loop to capture frames from stream and track objects
   while (true) {
     cv::Mat frame;
     cap >> frame;
 
-    if (isFirstFrame) {
-      // Setup the first boudning box for initialization
-      BoundingBox bbox;
-      bbox.x1_ = x1;
-      bbox.y1_ = y1;
-      bbox.x2_ = x2;
-      bbox.y2_ = y2;
+    // Initialize the boudning box to draw on frame.
+    BoundingBox& bbox_to_draw = first_bbox_;
+
+    if (state_ == STATE_BEFORE_TRACK) {
       // Initialize the tracker.
-      tracker_->Init(frame, bbox, regressor_);
-      isFirstFrame = false;
-    } else {
+      tracker_->Init(frame, first_bbox_, regressor_);
+      // Update state
+      state_ = STATE_TRACKING;
+    } else if (state_ == STATE_TRACKING) {
       // Track and estimate the target's bounding box location in the current image.
       BoundingBox bbox_estimate_uncentered;
       tracker_->Track(frame, regressor_, &bbox_estimate_uncentered);
-      // Draw estimated bounding box of the target location (red).
-      bbox_estimate_uncentered.Draw(255, 0, 0, &frame);
+      // Now the bouding box to draw is the estimated target location.
+      bbox_to_draw = bbox_estimate_uncentered;
     }
+
+    // Draw bouding box on frame (red).
+    bbox_to_draw.Draw(255, 0, 0, &frame);
 
     // Show the image with the estimated and ground-truth bounding boxes.
     cv::imshow("TrackerStreamer", frame);

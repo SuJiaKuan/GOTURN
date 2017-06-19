@@ -41,7 +41,7 @@ int main (int argc, char *argv[]) {
 
   // Start tracking
   TrackerStreamer tracker_streamer(&regressor, &tracker);
-  tracker_streamer.Track(stream_device, 0, 0, 100, 100, pause_val);
+  tracker_streamer.Track(stream_device, pause_val);
 
   return 0;
 }

@@ -139,11 +139,31 @@ class TrackerStreamer {
 public:
   TrackerStreamer(RegressorBase* regressor, Tracker* tracker);
 
-  void Track(
-      const std::string stream_device,
+  // Track an object in stream from a given device.
+  void Track(const std::string stream_device, const int pause_val);
+
+  // Enumearte state about the class.
+  enum State_t {
+    STATE_BEFORE_SELECT,
+    STATE_SELECTING,
+    STATE_BEFORE_TRACK,
+    STATE_TRACKING
+  };
+
+private:
+  // Wrapper function for onMouseEvent(int, int, int).
+  // It is a callback function for cv::setMouseCallback which recieves mouse
+  // events and then calls onMouseEvent(int, int, int).
+  static void onMouseEvent (int event, int x, int y, int flags, void* userData);
+
+  // Handler for mouse event.
+  // The function receives events and updates related states.
+  void onMouseEvent (int event, int x, int y);
+
+  // Set position of the first boudning first (first_box_)
+  void setFirstBoundingBox (
       const double x1, const double y1,
-      const double x2, const double y2,
-      const int pause_val);
+      const double x2, const double y2);
 
 private:
   // Neural network tracker.
@@ -151,6 +171,12 @@ private:
 
   // Tracker.
   Tracker* tracker_;
+
+  // Bouding box for object to track in first frame.
+  BoundingBox first_bbox_;
+
+  // State about class.
+  State_t state_;
 };
 
 #endif // TRACKER_MANAGER_H
