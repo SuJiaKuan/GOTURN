@@ -191,7 +191,7 @@ int main (int argc, char *argv[]) {
     cv::putText(dst, folder_path, cv::Point(target_cropped.cols / 2, padding_top / 2), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(255, 255, 0), 2.0);
 
     // Show the result.
-    cv::namedWindow("Regressor Test", cv::WINDOW_AUTOSIZE);
+    cv::namedWindow("Regressor Test", cv::WINDOW_NORMAL);
     cv::imshow("Regressor Test", dst);
     cv::waitKey(0);
   }
