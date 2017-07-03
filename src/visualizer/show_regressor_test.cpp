@@ -1,3 +1,5 @@
+#include <iostream>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -24,6 +26,21 @@ void ReadGroundTruth(const std::string& file_path, BoundingBox* bbox) {
   bbox->y2_ = std::max(y1, y2);
 }
 
+// Write performance metrics to a file
+void writePerformanceMetrics(const std::string& file_path, const std::vector<std::string>& metrics_names, const std::vector<double>& metrics_values) {
+  // Open the file for writting
+  std::ofstream output_file;
+  output_file.open(file_path.c_str(), std::ios::out);
+
+  // Write the performance metrics
+  for (size_t i = 0; i < metrics_names.size(); i++) {
+    output_file << metrics_names[i] << ": " << metrics_values[i] << "\n";
+  }
+
+  // Close the file
+  output_file.close();
+}
+
 // Crop image by detecting the location of bouding box relative to the image
 // to make the black padding less.
 void CropLessPadImage(
@@ -31,7 +48,8 @@ void CropLessPadImage(
     const cv::Mat& image,
     const int& output_width,
     const int& output_height,
-    cv::Mat* output_image) {
+    cv::Mat* output_image,
+    BoundingBox* bbox_in_output) {
   // Assign a new image with black background to the output.
   *output_image = cv::Mat(output_height, output_width, image.type(), cv::Scalar(0, 0, 0));
 
@@ -66,6 +84,12 @@ void CropLessPadImage(
   cv::Mat image_roi = image(cv::Rect(roi_x, roi_y, roi_width, roi_height));
   cv::Mat output_image_roi = (*output_image)(cv::Rect(0, 0, roi_width, roi_height));
   image_roi.copyTo(output_image_roi);
+
+  // Compute the bouding box in the output image
+  bbox_in_output->x1_ = bbox.x1_ - roi_x;
+  bbox_in_output->y1_ = bbox.y1_ - roi_y;
+  bbox_in_output->x2_ = bbox.x2_ - roi_x;
+  bbox_in_output->y2_ = bbox.y2_ - roi_y;
 }
 
 int main (int argc, char *argv[]) {
@@ -122,12 +146,14 @@ int main (int argc, char *argv[]) {
       // search_bbox is the bouding box of tracked object in search_origin.
       // target_cropped is the cropped image for target origin.
       // search_cropped is the cropped image for search_origin.
+      // search_bbox_cropped is the bouding box of tracked object in search_cropped.
       cv::Mat target_origin = cv::imread(folder_path + "/target.jpg");
       cv::Mat search_origin = cv::imread(folder_path + "/search.jpg");
       BoundingBox target_bbox;
       BoundingBox search_bbox;
       cv::Mat target_cropped;
       cv::Mat search_cropped;
+      BoundingBox search_bbox_cropped;
 
       // Read ground truth from files and write them to bouding boxes.
       ReadGroundTruth(folder_path + "/target_gt.txt", &target_bbox);
@@ -135,7 +161,7 @@ int main (int argc, char *argv[]) {
 
       // Crop target and search images.
       CropPadImage(target_bbox, target_origin, &target_cropped);
-      CropLessPadImage(search_bbox, search_origin, target_cropped.cols, target_cropped.rows, &search_cropped);
+      CropLessPadImage(search_bbox, search_origin, target_cropped.cols, target_cropped.rows, &search_cropped, &search_bbox_cropped);
 
       // Estimate the bounding box location of the tracked object, centered and scaled relative to the cropped image.
       BoundingBox bbox;
@@ -145,22 +171,42 @@ int main (int argc, char *argv[]) {
       BoundingBox bbox_unscaled;
       bbox.Unscale(search_cropped, &bbox_unscaled);
 
+      // Compute Intersection over Union (IoU)
+      const double gt_area = search_bbox_cropped.compute_area();
+      const double estimated_area = bbox_unscaled.compute_area();
+      const double inter_area = bbox_unscaled.compute_intersection(search_bbox_cropped);
+      const double union_area = gt_area + estimated_area - inter_area;
+      const double iou = inter_area / union_area;
+      // Compute area-based precision, recall and F1 score.
+      const double precision = inter_area / estimated_area;
+      const double recall = inter_area / gt_area;
+      const double f1_score = 2 * (precision * recall) / (precision +recall);
+      // Collect the performance metrics
+      const std::string _metrics_names[] = {"IoU", "precision", "recall", "F1 score"};
+      const std::vector<std::string> metrics_names(_metrics_names, _metrics_names + 4);
+      const double _metrics_values[] = {iou, precision, recall, f1_score};
+      const std::vector<double> metrics_values(_metrics_values, _metrics_values + 4);
+
       // Draw white bouding boxes on the groud truth and red bouding box on the estimated location.
       target_bbox.Draw(255, 255, 255, &target_origin);
       search_bbox.Draw(255, 255, 255, &search_origin);
       CropPadImage(target_bbox, target_origin, &target_cropped);
-      CropLessPadImage(search_bbox, search_origin, target_cropped.cols, target_cropped.rows, &search_cropped);
+      CropLessPadImage(search_bbox, search_origin, target_cropped.cols, target_cropped.rows, &search_cropped, &search_bbox_cropped);
       bbox_unscaled.Draw(255, 0, 0, &search_cropped);
 
-      // Show the estimated location
-      std::cout << folder_path
-          << " " << bbox_unscaled.x1_ << " " << bbox_unscaled.y1_
-          << " " << bbox_unscaled.x2_ << " " << bbox_unscaled.y2_
-          << std::endl;
+      // Show the performance metrics
+      std::cout << folder_path;
+      for (size_t i = 0; i < metrics_names.size(); i++) {
+        std::cout << " / " + metrics_names[i] + ": " << metrics_values[i];
+      }
+      std::cout << std::endl;
 
       // Write the result images
       cv::imwrite(folder_path + "/target_goturn.jpg", target_cropped);
       cv::imwrite(folder_path + "/search_goturn.jpg", search_cropped);
+
+      // Write performance metrics
+      writePerformanceMetrics(folder_path + "/metrics.txt", metrics_names, metrics_values);
     }
   }
 
